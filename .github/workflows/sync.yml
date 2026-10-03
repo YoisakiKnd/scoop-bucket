@@ -1,0 +1,30 @@
+name: Sync Teleaf release
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *'
+  push:
+    branches: [main]
+    paths: ['scripts/**', '.github/workflows/**']
+permissions:
+  contents: write
+concurrency:
+  group: scoop-manifest
+  cancel-in-progress: false
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read and verify the latest stable release
+        run: python3 scripts/sync-release.py
+      - name: Commit updated manifest
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add bucket/teleaf.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Update Teleaf Scoop manifest'
+            git push origin HEAD
+          fi
