@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Copy the latest stable Teleaf manifest after checking the release checksum."""
 import json
+import os
 import re
 import urllib.request
 from pathlib import Path
@@ -10,7 +11,11 @@ BASE = f'https://github.com/{REPOSITORY}'
 
 
 def fetch(url):
-    request = urllib.request.Request(url, headers={'User-Agent': 'teleaf-scoop-bucket'})
+    headers = {'User-Agent': 'teleaf-scoop-bucket'}
+    # Authenticate only the fixed API endpoint, never redirected asset downloads.
+    if url == f'https://api.github.com/repos/{REPOSITORY}/releases/latest' and os.environ.get('GH_TOKEN'):
+        headers['Authorization'] = 'Bearer ' + os.environ['GH_TOKEN']
+    request = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(request, timeout=60) as response:
         return response.read().decode('utf-8')
 
