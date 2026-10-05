@@ -1,4 +1,26 @@
-# Teleaf Scoop bucket
+# Yoisaki Scoop bucket
+
+Scoop manifests for [Teleaf](https://github.com/YoisakiKnd/teleaf) and [NakuruMusic](https://github.com/YoisakiKnd/NakuruMusic). Application binaries are hosted in each project's GitHub Releases.
+
+## NakuruMusic
+
+NakuruMusic is a YouTube Music terminal client. Its built-in audio player is the default; mpv is optional and can be selected in the app's Settings page.
+
+```powershell
+scoop bucket add yoisaki https://github.com/YoisakiKnd/scoop-bucket
+scoop install yoisaki/nakuru-music
+nakuru-music
+```
+
+To use mpv, install it separately and press `,` in NakuruMusic to open Settings:
+
+```powershell
+scoop install mpv
+```
+
+The `nakuru-music.json` manifest includes Scoop version checking and update metadata. Each published version must use the verified release hash.
+
+## Teleaf
 
 Lightweight Scoop metadata for [Teleaf](https://github.com/YoisakiKnd/teleaf), a Telegram terminal client. Application binaries and source code live in the main project; this repository contains only the manifest, documentation and its update workflow.
 
