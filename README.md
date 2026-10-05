@@ -5,7 +5,7 @@ Lightweight Scoop metadata for [Teleaf](https://github.com/YoisakiKnd/teleaf), a
 ## Install
 
 ```powershell
-scoop bucket add teleaf https://github.com/YoisakiKnd/scoop-teleaf
+scoop bucket add teleaf https://github.com/YoisakiKnd/scoop-bucket
 scoop install teleaf/teleaf
 teleaf --check
 ```
@@ -21,7 +21,7 @@ If you previously added the main `YoisakiKnd/teleaf` repository as the `teleaf` 
 
 ```powershell
 scoop bucket rm teleaf
-scoop bucket add teleaf https://github.com/YoisakiKnd/scoop-teleaf
+scoop bucket add teleaf https://github.com/YoisakiKnd/scoop-bucket
 scoop update teleaf
 ```
 
@@ -35,6 +35,8 @@ GitHub may delay scheduled runs or disable schedules for inactive repositories. 
 
 ## Release maintenance policy
 
-Every stable Teleaf release must update this bucket and submit the same manifest to [Mythos-404/eimer](https://github.com/Mythos-404/eimer) through a pull request. Submit updates through the publisher's authenticated GitHub CLI, updating an existing open PR when appropriate. Record the PR link; eimer availability depends on its maintainers merging it. Cross-repository PR submission is a release checklist requirement and is not currently automated by this repository's token.
+Every stable Teleaf release must update the main project and this bucket using the verified release manifest. Since 2026-10-04, the publisher's policy no longer requires creating or updating release pull requests in Mythos-404/eimer; existing pull requests remain unchanged unless separately requested. Record release and bucket synchronization results in the main project's release report.
+
+This repository was renamed from `YoisakiKnd/scoop-teleaf` to `YoisakiKnd/scoop-bucket`. The old URL redirects; existing buckets continue to work.
 
 Teleaf and this bucket's update scripts use the MIT license. Bundled third-party libraries retain their own licenses.
