@@ -1,13 +1,13 @@
 {
-    "version": "0.2.1",
+    "version": "0.2.2",
     "description": "NakuruMusic YouTube Music terminal client with built-in playback",
     "homepage": "https://github.com/YoisakiKnd/NakuruMusic",
     "license": "GPL-3.0-only",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/YoisakiKnd/NakuruMusic/releases/download/v0.2.1/nakuru-music-v0.2.1-x86_64-pc-windows-msvc.zip",
-            "hash": "f9cdf07439703645c6ce36b2b4b82478b0c0d1b52e6785d3d851a9dc89e19278",
-            "extract_dir": "nakuru-music-v0.2.1-x86_64-pc-windows-msvc"
+            "url": "https://github.com/YoisakiKnd/NakuruMusic/releases/download/v0.2.2/nakuru-music-v0.2.2-x86_64-pc-windows-msvc.zip",
+            "hash": "f55569e71636e78564e6607923189ea5e48c63489d43d86e2170fb1960af415f",
+            "extract_dir": "nakuru-music-v0.2.2-x86_64-pc-windows-msvc"
         }
     },
     "bin": "nakuru-music.exe",
