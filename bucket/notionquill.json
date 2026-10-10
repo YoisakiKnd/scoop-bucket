@@ -1,6 +1,7 @@
 {
     "version": "0.1.2",
     "description": "Lightweight writing client that keeps article drafts in Notion",
+    "license": "Proprietary",
     "homepage": "https://github.com/YoisakiKnd/NotionQuill",
     "architecture": {
         "64bit": {

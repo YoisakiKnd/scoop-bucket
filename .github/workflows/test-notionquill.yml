@@ -2,6 +2,9 @@ name: Test NotionQuill manifest
 
 # 这份 manifest 装不装得上，只有在 Windows 上装了才知道。
 # （NotionQuill 主仓库是在 Linux 上开发的，这边是唯一能验证 manifest 的地方。）
+#
+# 失败时会把错误的正文用 ::error:: 注解抛出来 —— 注解是匿名可读的，
+# 所以没有仓库权限的人（比如在 Linux 上写的那个）也看得到到底哪一步不对。
 
 on:
   push:
@@ -24,17 +27,44 @@ jobs:
         run: |
           Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
           # runner 上的用户是管理员，而 scoop 的安装脚本默认拒绝以管理员身份运行：
-          # 不加 -RunAsAdmin 的话它只会打印一句拒绝，退出码还是 0 —— 上一次就是这么挂的，
-          # 失败看起来发生在下一步（scoop: 命令找不到）。所以这里立即自查一次。
+          # 不加 -RunAsAdmin 的话它只打印一句拒绝、退出码还是 0。
           Invoke-Expression "& {$(Invoke-RestMethod https://get.scoop.sh)} -RunAsAdmin"
           scoop --version
           scoop config
 
-      - name: Install from this bucket
+      - name: Add this bucket
+        shell: pwsh
+        run: scoop bucket add yoisaki https://github.com/YoisakiKnd/scoop-bucket
+
+      - name: Validate the manifest against Scoop's schema before installing
         shell: pwsh
         run: |
-          scoop bucket add yoisaki https://github.com/YoisakiKnd/scoop-bucket
-          scoop install yoisaki/notionquill
+          # scoop 用同一份 schema 校验 manifest，缺字段会直接拒绝安装。
+          # 提前在这里查一遍，错的就不是「装不上」，而是「manifest 不合规」。
+          $schema = Invoke-RestMethod https://raw.githubusercontent.com/ScoopInstaller/Scoop/master/schema.json
+          $manifest = Get-Content bucket/notionquill.json -Raw | ConvertFrom-Json
+          foreach ($required in $schema.required) {
+            if ($null -eq $manifest.$required) { throw "manifest 缺字段：$required" }
+          }
+          Write-Host "必填字段都在：$($schema.required -join ', ')"
+
+      - name: Install notionquill
+        shell: pwsh
+        run: |
+          $log = New-Object System.Collections.Generic.List[string]
+          try {
+            $log.Add((& scoop install yoisaki/notionquill 2>&1 | Out-String))
+          } catch {
+            $log.Add(($_ | Out-String))
+          }
+          $text = ($log -join "`n")
+          Write-Host $text
+          if ($LASTEXITCODE -ne 0 -or $text -match 'ERROR ') {
+            $msg = $text.Trim() -replace "`r?`n", '%0A'
+            if ($msg.Length -gt 4000) { $msg = $msg.Substring($msg.Length - 4000) }
+            Write-Host "::error title=scoop install 失败::$msg"
+            exit 1
+          }
 
       - name: The installed app must match what the manifest says
         shell: pwsh
@@ -65,14 +95,9 @@ jobs:
             throw "不是 PE 文件，头两个字节是 $($bytes -join ',')"
           }
 
-          # scoop 装的时候已经核对过 hash 了，这里把它自己记下来的那份打出来
-          if (Test-Path "$dir\install.json") {
-            Write-Host "scoop 记下的安装信息："
-            Get-Content "$dir\install.json" -Raw | Write-Host
-          }
-
       - name: Report what Scoop recorded
         shell: pwsh
         run: |
           scoop list notionquill
           scoop info notionquill
+          Get-Content (Join-Path (scoop prefix notionquill).Trim() 'install.json') -Raw
