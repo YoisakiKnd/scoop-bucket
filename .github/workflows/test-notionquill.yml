@@ -23,7 +23,12 @@ jobs:
         shell: pwsh
         run: |
           Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-          Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+          # runner 上的用户是管理员，而 scoop 的安装脚本默认拒绝以管理员身份运行：
+          # 不加 -RunAsAdmin 的话它只会打印一句拒绝，退出码还是 0 —— 上一次就是这么挂的，
+          # 失败看起来发生在下一步（scoop: 命令找不到）。所以这里立即自查一次。
+          Invoke-Expression "& {$(Invoke-RestMethod https://get.scoop.sh)} -RunAsAdmin"
+          scoop --version
+          scoop config
 
       - name: Install from this bucket
         shell: pwsh
@@ -35,17 +40,19 @@ jobs:
         shell: pwsh
         run: |
           $manifest = Get-Content bucket/notionquill.json -Raw | ConvertFrom-Json
-          $apps = "$env:USERPROFILE\scoop\apps\notionquill"
 
-          # scoop 把每个版本放在自己的目录里，名字就是版本号
-          $versionDir = "$apps\$($manifest.version)"
-          if (!(Test-Path $versionDir)) {
-            throw "scoop 装的版本和 manifest 不一致（找不到 $versionDir）"
+          # 别猜路径：以管理员身份装出来的 scoop 在 C:\ProgramData 下，不是用户目录。
+          # scoop prefix 给的正好是这个应用的版本目录，zip 里只有一个 exe，就在根上。
+          $dir = (scoop prefix notionquill).Trim()
+          Write-Host "装到了 $dir"
+          $leaf = Split-Path $dir -Leaf
+          if ($leaf -ne $manifest.version) {
+            throw "scoop 装的版本（$leaf）和 manifest（$($manifest.version)）不一致"
           }
 
-          $exe = "$apps\current\notionquill.exe"
+          $exe = Join-Path $dir "notionquill.exe"
           if (!(Test-Path $exe)) {
-            Get-ChildItem $apps -Recurse | Out-String | Write-Host
+            Get-ChildItem $dir -Recurse | Out-String | Write-Host
             throw "没装上可执行文件：$exe"
           }
 
@@ -58,9 +65,10 @@ jobs:
             throw "不是 PE 文件，头两个字节是 $($bytes -join ',')"
           }
 
-          # 版本号写进 exe 里了没有
-          if ($item.VersionInfo.FileVersion -notmatch [regex]::Escape($manifest.version)) {
-            Write-Host "（注意：exe 里的 FileVersion 是 $($item.VersionInfo.FileVersion)，manifest 写的是 $($manifest.version)）"
+          # scoop 装的时候已经核对过 hash 了，这里把它自己记下来的那份打出来
+          if (Test-Path "$dir\install.json") {
+            Write-Host "scoop 记下的安装信息："
+            Get-Content "$dir\install.json" -Raw | Write-Host
           }
 
       - name: Report what Scoop recorded
