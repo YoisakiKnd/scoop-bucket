@@ -3,8 +3,8 @@ name: Test NotionQuill manifest
 # 这份 manifest 装不装得上，只有在 Windows 上装了才知道。
 # （NotionQuill 主仓库是在 Linux 上开发的，这边是唯一能验证 manifest 的地方。）
 #
-# 失败时会把错误的正文用 ::error:: 注解抛出来 —— 注解是匿名可读的，
-# 所以没有仓库权限的人（比如在 Linux 上写的那个）也看得到到底哪一步不对。
+# 读不到 job 日志的人靠步骤名和注解看结果，所以关键事实都用 ::notice:: 抛出来，
+# 失败时用 ::error:: 把命令自己的输出带出来。
 
 on:
   push:
@@ -29,12 +29,34 @@ jobs:
           # runner 上的用户是管理员，而 scoop 的安装脚本默认拒绝以管理员身份运行：
           # 不加 -RunAsAdmin 的话它只打印一句拒绝、退出码还是 0。
           Invoke-Expression "& {$(Invoke-RestMethod https://get.scoop.sh)} -RunAsAdmin"
-          scoop --version
-          scoop config
+
+          $root = $env:SCOOP
+          if (-not $root) { $root = 'C:\ProgramData\scoop' }   # -RunAsAdmin 的默认位置
+          Write-Host "scoop 装在 $root"
+
+          # 后面每一步都是新进程，继承的是 runner 启动时那份旧环境；安装脚本改的是
+          # 「用户级」PATH，新进程读不到 —— 不交给 GITHUB_PATH 的话，下一步只会说
+          # 「scoop: 命令找不到」。上两轮就是这么挂的。
+          "SCOOP=$root" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "$root\shims" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+
+          Write-Host "::notice title=scoop 装在::$root"
 
       - name: Add this bucket
         shell: pwsh
-        run: scoop bucket add yoisaki https://github.com/YoisakiKnd/scoop-bucket
+        run: |
+          if (-not (Get-Command scoop -ErrorAction Ignore)) { throw "PATH 里还是没有 scoop" }
+          $log = New-Object System.Collections.Generic.List[string]
+          try { $log.Add((& scoop bucket add yoisaki https://github.com/YoisakiKnd/scoop-bucket 2>&1 | Out-String)) }
+          catch { $log.Add(($_ | Out-String)) }
+          $text = ($log -join "`n")
+          Write-Host $text
+          if ($LASTEXITCODE -ne 0 -or $text -match 'ERROR ') {
+            $msg = $text.Trim() -replace "`r?`n", '%0A'
+            if ($msg.Length -gt 4000) { $msg = $msg.Substring($msg.Length - 4000) }
+            Write-Host "::error title=scoop bucket add 失败::$msg"
+            exit 1
+          }
 
       - name: Validate the manifest against Scoop's schema before installing
         shell: pwsh
@@ -47,16 +69,14 @@ jobs:
             if ($null -eq $manifest.$required) { throw "manifest 缺字段：$required" }
           }
           Write-Host "必填字段都在：$($schema.required -join ', ')"
+          Write-Host "::notice title=manifest 必填字段::$(($schema.required -join ', ') -replace ',', '，')"
 
       - name: Install notionquill
         shell: pwsh
         run: |
           $log = New-Object System.Collections.Generic.List[string]
-          try {
-            $log.Add((& scoop install yoisaki/notionquill 2>&1 | Out-String))
-          } catch {
-            $log.Add(($_ | Out-String))
-          }
+          try { $log.Add((& scoop install yoisaki/notionquill 2>&1 | Out-String)) }
+          catch { $log.Add(($_ | Out-String)) }
           $text = ($log -join "`n")
           Write-Host $text
           if ($LASTEXITCODE -ne 0 -or $text -match 'ERROR ') {
@@ -65,6 +85,7 @@ jobs:
             Write-Host "::error title=scoop install 失败::$msg"
             exit 1
           }
+          Write-Host "::notice title=scoop install::装上了"
 
       - name: The installed app must match what the manifest says
         shell: pwsh
@@ -94,6 +115,8 @@ jobs:
           if ($bytes[0] -ne 0x4D -or $bytes[1] -ne 0x5A) {
             throw "不是 PE 文件，头两个字节是 $($bytes -join ',')"
           }
+
+          Write-Host "::notice title=装上了::$dir（$($item.Length) 字节）"
 
       - name: Report what Scoop recorded
         shell: pwsh
