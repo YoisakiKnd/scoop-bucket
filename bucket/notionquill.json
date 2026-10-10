@@ -1,0 +1,30 @@
+{
+    "version": "0.1.2",
+    "description": "Lightweight writing client that keeps article drafts in Notion",
+    "homepage": "https://github.com/YoisakiKnd/NotionQuill",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/YoisakiKnd/NotionQuill/releases/download/v0.1.2/notionquill-0.1.2-windows-x86_64.zip",
+            "hash": "a03b57ea9faa068fa88d7057de59078923acd8f1189d81142316c728b43a97eb"
+        }
+    },
+    "bin": "notionquill.exe",
+    "shortcuts": [
+        [
+            "notionquill.exe",
+            "轻羽"
+        ]
+    ],
+    "checkver": "github",
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/YoisakiKnd/NotionQuill/releases/download/v$version/notionquill-$version-windows-x86_64.zip",
+                "hash": {
+                    "url": "https://github.com/YoisakiKnd/NotionQuill/releases/download/v$version/SHA256SUMS",
+                    "regex": "$sha256\\s+$basename"
+                }
+            }
+        }
+    }
+}

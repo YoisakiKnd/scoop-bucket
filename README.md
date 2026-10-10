@@ -62,3 +62,16 @@ Every stable Teleaf release must update the main project and this bucket using t
 This repository was renamed from `YoisakiKnd/scoop-teleaf` to `YoisakiKnd/scoop-bucket`. The old URL redirects; existing buckets continue to work.
 
 Teleaf and this bucket's update scripts use the MIT license. Bundled third-party libraries retain their own licenses.
+
+## NotionQuill
+
+[NotionQuill](https://github.com/YoisakiKnd/NotionQuill) (轻羽) is a lightweight writing client that keeps article drafts in Notion and writes them back to the same page.
+
+```powershell
+scoop bucket add yoisaki https://github.com/YoisakiKnd/scoop-bucket
+scoop install yoisaki/notionquill
+```
+
+The manifest installs the portable `notionquill.exe` from `notionquill-<version>-windows-x86_64.zip` and adds a Start Menu shortcut. The same release also carries a normal NSIS installer (`NotionQuill_<version>_x64-setup.exe`) for people who prefer that; Scoop does not use it. NotionQuill runs on the Microsoft Edge WebView2 runtime, which ships with Windows 10 and 11 by default.
+
+`checkver` / `autoupdate` read the new version's hash from the release's `SHA256SUMS`, the same way `teleaf.json` and `nakuru-music.json` do. The **Test NotionQuill manifest** workflow installs it on Windows whenever the manifest changes.

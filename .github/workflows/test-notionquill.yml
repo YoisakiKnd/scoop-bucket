@@ -1,0 +1,70 @@
+name: Test NotionQuill manifest
+
+# 这份 manifest 装不装得上，只有在 Windows 上装了才知道。
+# （NotionQuill 主仓库是在 Linux 上开发的，这边是唯一能验证 manifest 的地方。）
+
+on:
+  push:
+    paths:
+      - bucket/notionquill.json
+      - .github/workflows/test-notionquill.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Scoop
+        shell: pwsh
+        run: |
+          Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+          Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+
+      - name: Install from this bucket
+        shell: pwsh
+        run: |
+          scoop bucket add yoisaki https://github.com/YoisakiKnd/scoop-bucket
+          scoop install yoisaki/notionquill
+
+      - name: The installed app must match what the manifest says
+        shell: pwsh
+        run: |
+          $manifest = Get-Content bucket/notionquill.json -Raw | ConvertFrom-Json
+          $apps = "$env:USERPROFILE\scoop\apps\notionquill"
+
+          # scoop 把每个版本放在自己的目录里，名字就是版本号
+          $versionDir = "$apps\$($manifest.version)"
+          if (!(Test-Path $versionDir)) {
+            throw "scoop 装的版本和 manifest 不一致（找不到 $versionDir）"
+          }
+
+          $exe = "$apps\current\notionquill.exe"
+          if (!(Test-Path $exe)) {
+            Get-ChildItem $apps -Recurse | Out-String | Write-Host
+            throw "没装上可执行文件：$exe"
+          }
+
+          $item = Get-Item $exe
+          Write-Host "notionquill.exe：$($item.Length) 字节，FileVersion=$($item.VersionInfo.FileVersion)"
+
+          # 真的是个 Windows 可执行文件（MZ 头），而不是一个 HTML 错误页被存成了 exe
+          $bytes = [System.IO.File]::ReadAllBytes($exe)[0..1]
+          if ($bytes[0] -ne 0x4D -or $bytes[1] -ne 0x5A) {
+            throw "不是 PE 文件，头两个字节是 $($bytes -join ',')"
+          }
+
+          # 版本号写进 exe 里了没有
+          if ($item.VersionInfo.FileVersion -notmatch [regex]::Escape($manifest.version)) {
+            Write-Host "（注意：exe 里的 FileVersion 是 $($item.VersionInfo.FileVersion)，manifest 写的是 $($manifest.version)）"
+          }
+
+      - name: Report what Scoop recorded
+        shell: pwsh
+        run: |
+          scoop list notionquill
+          scoop info notionquill
