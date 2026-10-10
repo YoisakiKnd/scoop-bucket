@@ -120,19 +120,25 @@ jobs:
           $log = New-Object System.Collections.Generic.List[string]
           $failed = $false
           try {
-            # 别猜路径：以管理员身份装出来的 scoop 在 C:\ProgramData 下。
-            # scoop prefix 给的正好是这个应用的版本目录，zip 里只有一个 exe，就在根上。
-            $dir = (& $scoop prefix notionquill).Trim()
-            $log.Add("装到了 $dir")
-            $leaf = Split-Path $dir -Leaf
-            if ($leaf -ne $manifest.version) {
-              throw "scoop 装的版本（$leaf）和 manifest（$($manifest.version)）不一致"
+            # 别猜路径，问 scoop：它以管理员身份装到 C:\ProgramData、普通身份装到用户目录，
+            # 两种情况都见过（这台 runner 上是后者）。
+            $current = (& $scoop prefix notionquill).Trim()
+            $log.Add("装到了 $current")
+
+            $exe = Join-Path $current 'notionquill.exe'
+            if (!(Test-Path $exe)) {
+              $log.Add((Get-ChildItem $current -Recurse | Out-String))
+              throw "没装上可执行文件：$exe"
             }
 
-            $exe = Join-Path $dir 'notionquill.exe'
-            if (!(Test-Path $exe)) {
-              $log.Add((Get-ChildItem $dir -Recurse | Out-String))
-              throw "没装上可执行文件：$exe"
+            # scoop prefix 给的是 current —— 一个指向具体版本目录的链接，
+            # 版本号要看它指向哪儿（install.json 里那份 manifest 快照也记着）
+            $link = Get-Item $current -Force
+            $resolved = @($link.LinkTarget, $link.Target) | Where-Object { $_ } | Select-Object -First 1
+            $leaf = if ($resolved) { Split-Path $resolved -Leaf } else { Split-Path $current -Leaf }
+            $log.Add("current 指向的版本：$leaf")
+            if ($leaf -ne $manifest.version) {
+              throw "scoop 装的版本（$leaf）和 manifest（$($manifest.version)）不一致"
             }
 
             $item = Get-Item $exe
