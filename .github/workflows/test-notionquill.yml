@@ -3,8 +3,8 @@ name: Test NotionQuill manifest
 # 这份 manifest 装不装得上，只有在 Windows 上装了才知道。
 # （NotionQuill 主仓库是在 Linux 上开发的，这边是唯一能验证 manifest 的地方。）
 #
-# 读不到 job 日志的人靠步骤名和注解看结果，所以关键事实都用 ::notice:: 抛出来，
-# 失败时用 ::error:: 把命令自己的输出带出来。
+# 维护这个 manifest 的人读不到 job 日志，所以每一步失败都要自己说出来：
+# 用 ::error:: 把命令的输出带出来，用 ::notice:: 报关键事实。
 
 on:
   push:
@@ -30,56 +30,81 @@ jobs:
           # 不加 -RunAsAdmin 的话它只打印一句拒绝、退出码还是 0。
           Invoke-Expression "& {$(Invoke-RestMethod https://get.scoop.sh)} -RunAsAdmin"
 
-          $root = $env:SCOOP
-          if (-not $root) { $root = 'C:\ProgramData\scoop' }   # -RunAsAdmin 的默认位置
-          Write-Host "scoop 装在 $root"
+          # 装上哪去了不问官方文档，问这一进程自己的 PATH：安装脚本把它加进去了
+          # （这也是同一进程里 scoop --version 能跑起来的原因）。
+          # 后一步是新进程，继承的是 runner 启动时那份旧环境，所以必须显式传下去。
+          $shim = ($env:PATH -split ';' | Where-Object { $_ -like '*scoop*shims*' } | Select-Object -First 1)
+          if (-not $shim) {
+            # 退而求其次：把两个常见位置都找一遍
+            $shim = @('C:\ProgramData\scoop\shims', "$env:USERPROFILE\scoop\shims") |
+              Where-Object { Test-Path (Join-Path $_ 'scoop.cmd') } | Select-Object -First 1
+          }
+          if (-not $shim) { throw "装完了还是找不到 scoop 的 shims 目录" }
 
-          # 后面每一步都是新进程，继承的是 runner 启动时那份旧环境；安装脚本改的是
-          # 「用户级」PATH，新进程读不到 —— 不交给 GITHUB_PATH 的话，下一步只会说
-          # 「scoop: 命令找不到」。上两轮就是这么挂的。
-          "SCOOP=$root" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
-          "$root\shims" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+          Write-Host "::notice title=scoop shims::$shim"
+          & (Join-Path $shim 'scoop.cmd') --version
 
-          Write-Host "::notice title=scoop 装在::$root"
+          # 用 .NET 追加，不用 Out-File -Encoding utf8：PowerShell 5.1 那份会带 BOM，
+          # 而带 BOM 的 GITHUB_PATH 会让第一行 PATH 失效
+          [System.IO.File]::AppendAllText($env:GITHUB_ENV, "SCOOP_SHIM=$shim`n")
+          [System.IO.File]::AppendAllText($env:GITHUB_PATH, "$shim`n")
 
       - name: Add this bucket
         shell: pwsh
         run: |
-          if (-not (Get-Command scoop -ErrorAction Ignore)) { throw "PATH 里还是没有 scoop" }
+          $scoop = if ($env:SCOOP_SHIM) { Join-Path $env:SCOOP_SHIM 'scoop.cmd' } else { 'scoop' }
           $log = New-Object System.Collections.Generic.List[string]
-          try { $log.Add((& scoop bucket add yoisaki https://github.com/YoisakiKnd/scoop-bucket 2>&1 | Out-String)) }
-          catch { $log.Add(($_ | Out-String)) }
+          $failed = $false
+          try {
+            $log.Add((& $scoop bucket add yoisaki https://github.com/YoisakiKnd/scoop-bucket 2>&1 | Out-String))
+          } catch {
+            $failed = $true
+            $log.Add(($_ | Out-String))
+          }
           $text = ($log -join "`n")
           Write-Host $text
-          if ($LASTEXITCODE -ne 0 -or $text -match 'ERROR ') {
+          if ($LASTEXITCODE -ne 0 -or $text -match 'ERROR ') { $failed = $true }
+          if ($failed) {
             $msg = $text.Trim() -replace "`r?`n", '%0A'
             if ($msg.Length -gt 4000) { $msg = $msg.Substring($msg.Length - 4000) }
             Write-Host "::error title=scoop bucket add 失败::$msg"
             exit 1
           }
+          Write-Host "::notice title=bucket 加好了::yoisaki"
 
       - name: Validate the manifest against Scoop's schema before installing
         shell: pwsh
         run: |
           # scoop 用同一份 schema 校验 manifest，缺字段会直接拒绝安装。
-          # 提前在这里查一遍，错的就不是「装不上」，而是「manifest 不合规」。
+          # 提前查一遍：错的就不是「装不上」，而是「manifest 不合规」。
           $schema = Invoke-RestMethod https://raw.githubusercontent.com/ScoopInstaller/Scoop/master/schema.json
           $manifest = Get-Content bucket/notionquill.json -Raw | ConvertFrom-Json
+          $missing = @()
           foreach ($required in $schema.required) {
-            if ($null -eq $manifest.$required) { throw "manifest 缺字段：$required" }
+            if ($null -eq $manifest.$required) { $missing += $required }
           }
-          Write-Host "必填字段都在：$($schema.required -join ', ')"
-          Write-Host "::notice title=manifest 必填字段::$(($schema.required -join ', ') -replace ',', '，')"
+          if ($missing.Count -gt 0) {
+            Write-Host "::error title=manifest 不合规::缺字段：$($missing -join ', ')"
+            exit 1
+          }
+          Write-Host "::notice title=manifest 必填字段都在::$($schema.required -join ', ')"
 
       - name: Install notionquill
         shell: pwsh
         run: |
+          $scoop = if ($env:SCOOP_SHIM) { Join-Path $env:SCOOP_SHIM 'scoop.cmd' } else { 'scoop' }
           $log = New-Object System.Collections.Generic.List[string]
-          try { $log.Add((& scoop install yoisaki/notionquill 2>&1 | Out-String)) }
-          catch { $log.Add(($_ | Out-String)) }
+          $failed = $false
+          try {
+            $log.Add((& $scoop install yoisaki/notionquill 2>&1 | Out-String))
+          } catch {
+            $failed = $true
+            $log.Add(($_ | Out-String))
+          }
           $text = ($log -join "`n")
           Write-Host $text
-          if ($LASTEXITCODE -ne 0 -or $text -match 'ERROR ') {
+          if ($LASTEXITCODE -ne 0 -or $text -match 'ERROR ') { $failed = $true }
+          if ($failed) {
             $msg = $text.Trim() -replace "`r?`n", '%0A'
             if ($msg.Length -gt 4000) { $msg = $msg.Substring($msg.Length - 4000) }
             Write-Host "::error title=scoop install 失败::$msg"
@@ -90,37 +115,51 @@ jobs:
       - name: The installed app must match what the manifest says
         shell: pwsh
         run: |
+          $scoop = if ($env:SCOOP_SHIM) { Join-Path $env:SCOOP_SHIM 'scoop.cmd' } else { 'scoop' }
           $manifest = Get-Content bucket/notionquill.json -Raw | ConvertFrom-Json
+          $log = New-Object System.Collections.Generic.List[string]
+          $failed = $false
+          try {
+            # 别猜路径：以管理员身份装出来的 scoop 在 C:\ProgramData 下。
+            # scoop prefix 给的正好是这个应用的版本目录，zip 里只有一个 exe，就在根上。
+            $dir = (& $scoop prefix notionquill).Trim()
+            $log.Add("装到了 $dir")
+            $leaf = Split-Path $dir -Leaf
+            if ($leaf -ne $manifest.version) {
+              throw "scoop 装的版本（$leaf）和 manifest（$($manifest.version)）不一致"
+            }
 
-          # 别猜路径：以管理员身份装出来的 scoop 在 C:\ProgramData 下，不是用户目录。
-          # scoop prefix 给的正好是这个应用的版本目录，zip 里只有一个 exe，就在根上。
-          $dir = (scoop prefix notionquill).Trim()
-          Write-Host "装到了 $dir"
-          $leaf = Split-Path $dir -Leaf
-          if ($leaf -ne $manifest.version) {
-            throw "scoop 装的版本（$leaf）和 manifest（$($manifest.version)）不一致"
+            $exe = Join-Path $dir 'notionquill.exe'
+            if (!(Test-Path $exe)) {
+              $log.Add((Get-ChildItem $dir -Recurse | Out-String))
+              throw "没装上可执行文件：$exe"
+            }
+
+            $item = Get-Item $exe
+            $log.Add("notionquill.exe：$($item.Length) 字节，FileVersion=$($item.VersionInfo.FileVersion)")
+
+            # 真的是 Windows 可执行文件（MZ 头），而不是一个 HTML 错误页被存成了 exe
+            $bytes = [System.IO.File]::ReadAllBytes($exe)[0..1]
+            if ($bytes[0] -ne 0x4D -or $bytes[1] -ne 0x5A) {
+              throw "不是 PE 文件，头两个字节是 $($bytes -join ',')"
+            }
+          } catch {
+            $failed = $true
+            $log.Add(($_ | Out-String))
           }
-
-          $exe = Join-Path $dir "notionquill.exe"
-          if (!(Test-Path $exe)) {
-            Get-ChildItem $dir -Recurse | Out-String | Write-Host
-            throw "没装上可执行文件：$exe"
+          $text = ($log -join "`n")
+          Write-Host $text
+          $msg = $text.Trim() -replace "`r?`n", '%0A'
+          if ($msg.Length -gt 4000) { $msg = $msg.Substring($msg.Length - 4000) }
+          if ($failed) {
+            Write-Host "::error title=装上的东西对不上::$msg"
+            exit 1
           }
-
-          $item = Get-Item $exe
-          Write-Host "notionquill.exe：$($item.Length) 字节，FileVersion=$($item.VersionInfo.FileVersion)"
-
-          # 真的是个 Windows 可执行文件（MZ 头），而不是一个 HTML 错误页被存成了 exe
-          $bytes = [System.IO.File]::ReadAllBytes($exe)[0..1]
-          if ($bytes[0] -ne 0x4D -or $bytes[1] -ne 0x5A) {
-            throw "不是 PE 文件，头两个字节是 $($bytes -join ',')"
-          }
-
-          Write-Host "::notice title=装上了::$dir（$($item.Length) 字节）"
+          Write-Host "::notice title=装上了并对得上::$msg"
 
       - name: Report what Scoop recorded
         shell: pwsh
         run: |
-          scoop list notionquill
-          scoop info notionquill
-          Get-Content (Join-Path (scoop prefix notionquill).Trim() 'install.json') -Raw
+          $scoop = if ($env:SCOOP_SHIM) { Join-Path $env:SCOOP_SHIM 'scoop.cmd' } else { 'scoop' }
+          & $scoop list notionquill
+          & $scoop info notionquill
