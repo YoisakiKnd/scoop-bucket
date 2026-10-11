@@ -1,12 +1,12 @@
 {
-    "version": "0.1.2",
-    "description": "Lightweight writing client that keeps article drafts in Notion",
+    "version": "0.2.0",
+    "description": "Thin shell around Notion's own web app",
     "license": "Proprietary",
     "homepage": "https://github.com/YoisakiKnd/NotionQuill",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/YoisakiKnd/NotionQuill/releases/download/v0.1.2/notionquill-0.1.2-windows-x86_64.zip",
-            "hash": "a03b57ea9faa068fa88d7057de59078923acd8f1189d81142316c728b43a97eb"
+            "url": "https://github.com/YoisakiKnd/NotionQuill/releases/download/v0.2.0/notionquill-0.2.0-windows-x86_64.zip",
+            "hash": "f93b0fe516b3fa2739b71a6e070f4a15af4c5ef0a751d0f51e31650132306bad"
         }
     },
     "bin": "notionquill.exe",

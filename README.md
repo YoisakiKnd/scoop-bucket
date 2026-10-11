@@ -65,7 +65,7 @@ Teleaf and this bucket's update scripts use the MIT license. Bundled third-party
 
 ## NotionQuill
 
-[NotionQuill](https://github.com/YoisakiKnd/NotionQuill) (轻羽) is a lightweight writing client that keeps article drafts in Notion and writes them back to the same page.
+[NotionQuill](https://github.com/YoisakiKnd/NotionQuill) (轻羽) is a thin shell around Notion's own web app: the window is ours, the page inside is Notion's, so every feature is present because none of them are reimplemented. What is left out is the outer layer — no bundled browser engine, no Node, no updater.
 
 ```powershell
 scoop bucket add yoisaki https://github.com/YoisakiKnd/scoop-bucket
