@@ -1,12 +1,12 @@
 {
-    "version": "0.2.0",
+    "version": "0.2.1",
     "description": "Thin shell around Notion's own web app",
     "license": "Proprietary",
     "homepage": "https://github.com/YoisakiKnd/NotionQuill",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/YoisakiKnd/NotionQuill/releases/download/v0.2.0/notionquill-0.2.0-windows-x86_64.zip",
-            "hash": "f93b0fe516b3fa2739b71a6e070f4a15af4c5ef0a751d0f51e31650132306bad"
+            "url": "https://github.com/YoisakiKnd/NotionQuill/releases/download/v0.2.1/notionquill-0.2.1-windows-x86_64.zip",
+            "hash": "40482f943587192eaa1c073d70e63dbfce56418c33d20f4068fc9d8cec077a93"
         }
     },
     "bin": "notionquill.exe",
