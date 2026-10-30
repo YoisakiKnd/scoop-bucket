@@ -86,6 +86,17 @@ jobs:
           $next = $manifest.autoupdate.extract_dir.Replace('$version', $manifest.version)
           if ($next -ne $manifest.extract_dir) { throw 'Extraction directory update mismatch' }
           & $env:SCOOP_COMMAND list congminal
+      - name: Verify installed application home directory and caption
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $manifest = Get-Content bucket/congminal.json -Raw | ConvertFrom-Json
+          $prefix = (& $env:SCOOP_COMMAND prefix congminal).Trim()
+          if ($LASTEXITCODE -ne 0) { throw 'No installed prefix' }
+          $resolved = (Get-Item -LiteralPath $prefix).ResolveLinkTarget($true)
+          if ($null -ne $resolved) { $prefix = $resolved.FullName }
+          $test = Join-Path $env:RUNNER_TEMP 'congminal-installed-startup.ps1'
+          Invoke-WebRequest "https://raw.githubusercontent.com/YoisakiKnd/congminal/v$($manifest.version)/ci/check-windows-startup.ps1" -OutFile $test
+          & $test -Bin (Join-Path $prefix 'congminal.exe')
       - name: Verify uninstall
         run: |
           $ErrorActionPreference = 'Stop'
