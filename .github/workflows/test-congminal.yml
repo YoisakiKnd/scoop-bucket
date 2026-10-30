@@ -56,10 +56,17 @@ jobs:
               if ($stream.ReadByte() -ne 0x4D -or $stream.ReadByte() -ne 0x5A) { throw "Not a PE executable: $path" }
             } finally { $stream.Dispose() }
           }
-          foreach ($name in @('LICENSE', 'NOTICE', 'LICENSE-libc.txt', 'LICENSE-Terminus.txt')) {
+          foreach ($name in @('LICENSE', 'NOTICE', 'LICENSE-libc.txt', 'LICENSE-Terminus.txt', 'LICENSE-ConPTY.txt', 'NOTICE-ConPTY.md')) {
             if (-not (Test-Path (Join-Path $prefix $name) -PathType Leaf)) { throw "Missing license: $name" }
           }
           if ((Get-Content (Join-Path $prefix 'LICENSE') -Raw) -notmatch 'GNU GENERAL PUBLIC LICENSE') { throw 'Missing GPL text' }
+          $runtime = Invoke-RestMethod "https://raw.githubusercontent.com/YoisakiKnd/congminal/v$($manifest.version)/ci/conpty-runtime.json"
+          foreach ($entry in $runtime.files.PSObject.Properties) {
+            $path = Join-Path $prefix $entry.Name
+            if (-not (Test-Path $path -PathType Leaf)) { throw "Missing ConPTY component: $path" }
+            if ((Get-FileHash $path -Algorithm SHA256).Hash.ToLowerInvariant() -ne $entry.Value.sha256) { throw "ConPTY component mismatch: $path" }
+            if ((Get-Item $path).Length -ne $entry.Value.bytes) { throw "ConPTY component size mismatch: $path" }
+          }
           $expected = "congminal $($manifest.version)"
           # PowerShell may return before a GUI-subsystem executable finishes and close
           # its expression pipe. Wait for the process tree and capture to real files.
