@@ -61,8 +61,18 @@ jobs:
           }
           if ((Get-Content (Join-Path $prefix 'LICENSE') -Raw) -notmatch 'GNU GENERAL PUBLIC LICENSE') { throw 'Missing GPL text' }
           $expected = "congminal $($manifest.version)"
-          if ((& (Join-Path $prefix 'congminal.exe') --version) -ne $expected) { throw 'Installed version mismatch' }
-          if ((& congminal --version) -ne $expected) { throw 'Command shim mismatch' }
+          # PowerShell may return before a GUI-subsystem executable finishes and close
+          # its expression pipe. Wait for the process tree and capture to real files.
+          function Read-Version([string]$exe, [string]$label) {
+            $out = Join-Path $env:RUNNER_TEMP "congminal-$label.out"
+            $err = Join-Path $env:RUNNER_TEMP "congminal-$label.err"
+            $process = Start-Process -FilePath $exe -ArgumentList '--version' -Wait -PassThru -NoNewWindow -RedirectStandardOutput $out -RedirectStandardError $err
+            if ($process.ExitCode -ne 0) { throw "Version process failed: $(Get-Content $err -Raw)" }
+            return (Get-Content $out -Raw).Trim()
+          }
+          if ((Read-Version (Join-Path $prefix 'congminal.exe') 'direct') -ne $expected) { throw 'Installed version mismatch' }
+          $shim = (Get-Command congminal.exe -ErrorAction Stop).Source
+          if ((Read-Version $shim 'shim') -ne $expected) { throw 'Command shim mismatch' }
           $url = $manifest.architecture.'64bit'.url
           $checksum = (Invoke-RestMethod "$url.sha256").Trim() -split '\s+'
           if ($checksum[0] -ne $manifest.architecture.'64bit'.hash) { throw 'Release checksum mismatch' }
