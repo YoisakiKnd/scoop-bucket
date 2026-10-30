@@ -1,6 +1,6 @@
 # Yoisaki Scoop bucket
 
-Scoop manifests for [Teleaf](https://github.com/YoisakiKnd/teleaf) [NakuruMusic](https://github.com/YoisakiKnd/NakuruMusic), and [congminal](https://github.com/YoisakiKnd/congminal). Application binaries are hosted in each project's GitHub Releases.
+Scoop manifests for [Teleaf](https://github.com/YoisakiKnd/teleaf), [NakuruMusic](https://github.com/YoisakiKnd/NakuruMusic), [NotionQuill](https://github.com/YoisakiKnd/NotionQuill), and [congminal](https://github.com/YoisakiKnd/congminal). Application binaries are hosted in each project's GitHub Releases.
 
 ## NakuruMusic
 
