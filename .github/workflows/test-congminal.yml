@@ -1,0 +1,76 @@
+name: Test congminal manifest
+
+on:
+  push:
+    paths:
+      - bucket/congminal.json
+      - .github/workflows/test-congminal.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate the complete Scoop schema
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $schema = (Invoke-WebRequest https://raw.githubusercontent.com/ScoopInstaller/Scoop/master/schema.json).Content
+          $manifest = Get-Content bucket/congminal.json -Raw
+          if (-not (Test-Json -Json $manifest -Schema $schema)) { throw 'Invalid Scoop manifest' }
+      - name: Install Scoop
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+          & ([scriptblock]::Create((Invoke-RestMethod https://get.scoop.sh))) -RunAsAdmin
+          $scoop = (Get-Command scoop.cmd -ErrorAction Stop).Source
+          if (-not $scoop) { throw 'Scoop installation did not expose its command' }
+          $shim = Split-Path $scoop
+          Add-Content $env:GITHUB_ENV "SCOOP_COMMAND=$scoop"
+          Add-Content $env:GITHUB_PATH $shim
+      - name: Install from this public bucket
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & $env:SCOOP_COMMAND bucket add yoisaki https://github.com/YoisakiKnd/scoop-bucket
+          if ($LASTEXITCODE -ne 0) { throw 'Could not add bucket' }
+          & $env:SCOOP_COMMAND install yoisaki/congminal
+          if ($LASTEXITCODE -ne 0) { throw 'Scoop install failed' }
+      - name: Verify installed binaries, shim and release checksum
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $manifest = Get-Content bucket/congminal.json -Raw | ConvertFrom-Json
+          $prefix = (& $env:SCOOP_COMMAND prefix congminal).Trim()
+          if ($LASTEXITCODE -ne 0) { throw 'No installation prefix' }
+          foreach ($name in @('congminal.exe', 'congminal-ssh-helper.exe')) {
+            $path = Join-Path $prefix $name
+            if (-not (Test-Path $path -PathType Leaf)) { throw "Missing $path" }
+            $stream = [System.IO.File]::OpenRead($path)
+            try {
+              if ($stream.ReadByte() -ne 0x4D -or $stream.ReadByte() -ne 0x5A) { throw "Not a PE executable: $path" }
+            } finally { $stream.Dispose() }
+          }
+          foreach ($name in @('LICENSE', 'NOTICE', 'LICENSE-libc.txt', 'LICENSE-Terminus.txt')) {
+            if (-not (Test-Path (Join-Path $prefix $name) -PathType Leaf)) { throw "Missing license: $name" }
+          }
+          if ((Get-Content (Join-Path $prefix 'LICENSE') -Raw) -notmatch 'GNU GENERAL PUBLIC LICENSE') { throw 'Missing GPL text' }
+          $expected = "congminal $($manifest.version)"
+          if ((& (Join-Path $prefix 'congminal.exe') --version) -ne $expected) { throw 'Installed version mismatch' }
+          if ((& congminal --version) -ne $expected) { throw 'Command shim mismatch' }
+          $url = $manifest.architecture.'64bit'.url
+          $checksum = (Invoke-RestMethod "$url.sha256").Trim() -split '\s+'
+          if ($checksum[0] -ne $manifest.architecture.'64bit'.hash) { throw 'Release checksum mismatch' }
+          $next = $manifest.autoupdate.extract_dir.Replace('$version', $manifest.version)
+          if ($next -ne $manifest.extract_dir) { throw 'Extraction directory update mismatch' }
+          & $env:SCOOP_COMMAND list congminal
+      - name: Verify uninstall
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & $env:SCOOP_COMMAND uninstall congminal
+          if ($LASTEXITCODE -ne 0) { throw 'Scoop uninstall failed' }

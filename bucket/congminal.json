@@ -1,0 +1,40 @@
+{
+    "version": "0.1.1",
+    "description": "Native terminal emulator with SSH, SFTP, Git, and monitoring",
+    "homepage": "https://github.com/YoisakiKnd/congminal",
+    "license": {
+        "identifier": "GPL-3.0-only",
+        "url": "https://github.com/YoisakiKnd/congminal/blob/v0.1.1/LICENSE"
+    },
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/YoisakiKnd/congminal/releases/download/v0.1.1/congminal-0.1.1-windows-x86_64.zip",
+            "hash": "8ee6cd3c54b0c4b22ec19db061a0477c941862ec73c8d8f71c21213f8c20fd0f"
+        }
+    },
+    "extract_dir": "congminal-0.1.1-windows-x86_64",
+    "bin": "congminal.exe",
+    "shortcuts": [
+        [
+            "congminal.exe",
+            "congminal"
+        ]
+    ],
+    "notes": [
+        "Requires Windows 10 1809 or later.",
+        "SSH/SFTP uses a separately installed OpenSSH client. SFTP needs OpenSSH 8.7+ with askpass support.",
+        "Keep congminal-ssh-helper.exe alongside congminal.exe; it is included in this package."
+    ],
+    "checkver": "github",
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/YoisakiKnd/congminal/releases/download/v$version/congminal-$version-windows-x86_64.zip",
+                "hash": {
+                    "url": "$url.sha256"
+                }
+            }
+        },
+        "extract_dir": "congminal-$version-windows-x86_64"
+    }
+}
