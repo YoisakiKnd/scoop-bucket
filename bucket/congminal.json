@@ -1,18 +1,18 @@
 {
-    "version": "0.2.3",
+    "version": "0.2.4",
     "description": "Native terminal emulator with SSH, SFTP, Git, and monitoring",
     "homepage": "https://github.com/YoisakiKnd/congminal",
     "license": {
         "identifier": "GPL-3.0-only",
-        "url": "https://github.com/YoisakiKnd/congminal/blob/v0.2.3/LICENSE"
+        "url": "https://github.com/YoisakiKnd/congminal/blob/v0.2.4/LICENSE"
     },
     "architecture": {
         "64bit": {
-            "url": "https://github.com/YoisakiKnd/congminal/releases/download/v0.2.3/congminal-0.2.3-windows-x86_64.zip",
-            "hash": "36ae3174ea7a9b4f7f5b7f2fa04f491ab82b60f5b3b57f5bcaafa98cda96dcab"
+            "url": "https://github.com/YoisakiKnd/congminal/releases/download/v0.2.4/congminal-0.2.4-windows-x86_64.zip",
+            "hash": "0c2899daf1a97db112af8f490107d035227d71a0bdf29b9c3ff8bba716fe83a4"
         }
     },
-    "extract_dir": "congminal-0.2.3-windows-x86_64",
+    "extract_dir": "congminal-0.2.4-windows-x86_64",
     "bin": "congminal.exe",
     "shortcuts": [
         [
