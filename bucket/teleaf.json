@@ -1,12 +1,12 @@
 {
-    "version": "0.3.3",
+    "version": "0.3.4",
     "description": "Lightweight Telegram terminal client with inline media and mouse controls",
     "homepage": "https://github.com/YoisakiKnd/teleaf",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/YoisakiKnd/teleaf/releases/download/v0.3.3/teleaf-0.3.3-windows-x86_64.zip",
-            "hash": "2a037a77e8dc4af06ab8489a2055f9ba37a5f34ba22b9c27b52ab60c536eebb5"
+            "url": "https://github.com/YoisakiKnd/teleaf/releases/download/v0.3.4/teleaf-0.3.4-windows-x86_64.zip",
+            "hash": "c8b152b1adabf8024b2028c5a3438dec03e2494d76cdd4684eea8d2d1d8347a1"
         }
     },
     "bin": "teleaf.exe",
